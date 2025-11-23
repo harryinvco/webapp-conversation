@@ -1,18 +1,18 @@
-# Conversation Web App Template
+# Conversation Web App Template - Powered by Innovaco
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+
+Built and branded by **Innovaco** - bringing intelligent conversations to life.
 
 ## Config App
 Create a file named `.env.local` in the current directory and copy the contents from `.env.example`. Setting the following content:
 ```
-# APP ID: This is the unique identifier for your app. You can find it in the app's detail page URL. 
-# For example, in the URL `https://cloud.dify.ai/app/xxx/workflow`, the value `xxx` is your APP ID.
+# APP ID: This is the unique identifier for your app.
 NEXT_PUBLIC_APP_ID=
 
-# APP API Key: This is the key used to authenticate your app's API requests. 
-# You can generate it on the app's "API Access" page by clicking the "API Key" button in the top-right corner.
+# APP API Key: This is the key used to authenticate your app's API requests.
 NEXT_PUBLIC_APP_KEY=
 
-# APP URL: This is the API's base URL. If you're using the Dify cloud service, set it to: https://api.dify.ai/v1.
+# APP URL: This is the API's base URL.
 NEXT_PUBLIC_API_URL=
 ```
 
