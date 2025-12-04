@@ -1,19 +1,19 @@
 'use client'
 import type { FC } from 'react'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import produce, { setAutoFreeze } from 'immer'
 import { useBoolean, useGetState } from 'ahooks'
 import useConversation from '@/hooks/use-conversation'
 import Toast from '@/app/components/base/toast'
+import Header from '@/app/components/header'
 import Sidebar from '@/app/components/sidebar'
 import ConfigSence from '@/app/components/config-scence'
-import Header from '@/app/components/header'
+import Chat from '@/app/components/chat'
 import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback } from '@/service'
 import type { ChatItem, ConversationItem, Feedbacktype, PromptConfig, VisionFile, VisionSettings } from '@/types/app'
 import type { FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { Resolution, TransferMethod, WorkflowRunningStatus } from '@/types/app'
-import Chat from '@/app/components/chat'
 import { setLocaleOnClient } from '@/i18n/client'
 import useBreakpoints, { MediaType } from '@/hooks/use-breakpoints'
 import Loading from '@/app/components/base/loading'
@@ -619,7 +619,7 @@ const Main: FC<IMainProps> = () => {
     })
   }
 
-  const handleFeedback = async (messageId: string, feedback: Feedbacktype) => {
+  const handleFeedback = useCallback(async (messageId: string, feedback: Feedbacktype) => {
     await updateFeedback({ url: `/messages/${messageId}/feedbacks`, body: { rating: feedback.rating } })
     const newChatList = chatList.map((item) => {
       if (item.id === messageId) {
@@ -632,9 +632,10 @@ const Main: FC<IMainProps> = () => {
     })
     setChatList(newChatList)
     notify({ type: 'success', message: t('common.api.success') })
-  }
+  }, [chatList, notify, t])
 
-  const renderSidebar = () => {
+  // Memoize sidebar to prevent unnecessary re-renders
+  const sidebarContent = useMemo(() => {
     if (!APP_ID || !APP_INFO || !promptConfig) { return null }
     return (
       <Sidebar
@@ -644,58 +645,75 @@ const Main: FC<IMainProps> = () => {
         copyRight={APP_INFO.copyright || APP_INFO.title}
       />
     )
-  }
+  }, [conversationList, currConversationId, handleConversationIdChange, promptConfig])
+
+  // Memoize handlers
+  const handleCreateNewChat = useCallback(() => {
+    handleConversationIdChange('-1')
+  }, [handleConversationIdChange])
 
   if (appUnavailable) { return <AppUnavailable isUnknownReason={isUnknownReason} errMessage={!hasSetAppConfig ? 'Please set APP_ID and API_KEY in config/index.tsx' : ''} /> }
 
   if (!APP_ID || !APP_INFO || !promptConfig) { return <Loading type='app' /> }
 
   return (
-    <div className='bg-gray-100'>
+    <div className="h-screen flex flex-col bg-[var(--main-bg)]">
       <Header
         title={APP_INFO.title}
         isMobile={isMobile}
         onShowSideBar={showSidebar}
-        onCreateNewChat={() => handleConversationIdChange('-1')}
+        onCreateNewChat={handleCreateNewChat}
       />
-      <div className="flex rounded-t-2xl bg-white overflow-hidden">
-        {/* sidebar */}
-        {!isMobile && renderSidebar()}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar */}
+        {!isMobile && sidebarContent}
+
+        {/* Mobile sidebar overlay */}
         {isMobile && isShowSidebar && (
-          <div className='fixed inset-0 z-50' style={{ backgroundColor: 'rgba(35, 56, 118, 0.2)' }} onClick={hideSidebar} >
-            <div className='inline-block' onClick={e => e.stopPropagation()}>
-              {renderSidebar()}
+          <div
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            onClick={hideSidebar}
+          >
+            <div
+              className="absolute left-0 top-0 h-full animate-fade-in"
+              onClick={e => e.stopPropagation()}
+            >
+              {sidebarContent}
             </div>
           </div>
         )}
-        {/* main */}
-        <div className='flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto'>
-          <ConfigSence
-            conversationName={conversationName}
-            hasSetInputs={hasSetInputs}
-            isPublicVersion={isShowPrompt}
-            siteInfo={APP_INFO}
-            promptConfig={promptConfig}
-            onStartChat={handleStartChat}
-            canEditInputs={canEditInputs}
-            savedInputs={currInputs as Record<string, any>}
-            onInputsChange={setCurrInputs}
-          ></ConfigSence>
 
-          {
-            hasSetInputs && (
-              <div className='relative grow pc:w-[794px] max-w-full mobile:w-full pb-[180px] mx-auto mb-3.5' ref={chatListDomRef}>
-                <Chat
-                  chatList={chatList}
-                  onSend={handleSend}
-                  onFeedback={handleFeedback}
-                  isResponding={isResponding}
-                  checkCanSend={checkCanSend}
-                  visionConfig={visionConfig}
-                  fileConfig={fileConfig}
-                />
-              </div>)
-          }
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Welcome/Config screen when no chat started */}
+          {!hasSetInputs && (
+            <ConfigSence
+              conversationName={conversationName}
+              hasSetInputs={hasSetInputs}
+              isPublicVersion={isShowPrompt}
+              siteInfo={APP_INFO}
+              promptConfig={promptConfig}
+              onStartChat={handleStartChat}
+              canEditInputs={canEditInputs}
+              savedInputs={currInputs as Record<string, any>}
+              onInputsChange={setCurrInputs}
+            />
+          )}
+
+          {/* Chat area */}
+          {hasSetInputs && (
+            <div className="flex-1 overflow-hidden" ref={chatListDomRef}>
+              <Chat
+                chatList={chatList}
+                onSend={handleSend}
+                onFeedback={handleFeedback}
+                isResponding={isResponding}
+                checkCanSend={checkCanSend}
+                visionConfig={visionConfig}
+                fileConfig={fileConfig}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,17 +2,19 @@
 import type { FC } from 'react'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import TemplateVarPanel, { PanelTitle, VarOpBtnGroup } from '../value-panel'
+import {
+  DocumentTextIcon,
+  ChatBubbleLeftRightIcon,
+  CodeBracketIcon,
+  LightBulbIcon,
+  ArrowUpIcon,
+} from '@heroicons/react/24/outline'
+import { SparklesIcon } from '@heroicons/react/24/solid'
 import FileUploaderInAttachmentWrapper from '../base/file-uploader-in-attachment'
-import s from './style.module.css'
-import { AppInfoComp, ChatBtn, EditBtn, InnovacoLogo, PromptTemplate } from './massive-component'
 import type { AppInfo, PromptConfig } from '@/types/app'
 import Toast from '@/app/components/base/toast'
 import Select from '@/app/components/base/select'
 import { DEFAULT_VALUE_MAX_LEN } from '@/config'
-
-// regex to match the {{}} and replace it with a span
-const regex = /\{\{([^}]+)\}\}/g
 
 export interface IWelcomeProps {
   conversationName: string
@@ -25,6 +27,34 @@ export interface IWelcomeProps {
   savedInputs: Record<string, any>
   onInputsChange: (inputs: Record<string, any>) => void
 }
+
+// Quick action suggestions
+const suggestions = [
+  {
+    icon: <DocumentTextIcon className="w-5 h-5" />,
+    title: 'Summarize text',
+    description: 'Get a concise summary of any document',
+    prompt: 'Please summarize the following text: ',
+  },
+  {
+    icon: <CodeBracketIcon className="w-5 h-5" />,
+    title: 'Help me code',
+    description: 'Debug, write, or explain code',
+    prompt: 'I need help with the following code: ',
+  },
+  {
+    icon: <LightBulbIcon className="w-5 h-5" />,
+    title: 'Brainstorm ideas',
+    description: 'Generate creative ideas for any project',
+    prompt: 'Help me brainstorm ideas for: ',
+  },
+  {
+    icon: <ChatBubbleLeftRightIcon className="w-5 h-5" />,
+    title: 'Draft a message',
+    description: 'Write professional emails or messages',
+    prompt: 'Help me write a professional message about: ',
+  },
+]
 
 const Welcome: FC<IWelcomeProps> = ({
   conversationName,
@@ -39,10 +69,9 @@ const Welcome: FC<IWelcomeProps> = ({
 }) => {
   const { t } = useTranslation()
   const hasVar = promptConfig.prompt_variables.length > 0
-  const [isFold, setIsFold] = useState<boolean>(true)
-  const [inputs, setInputs] = useState<Record<string, any>>((() => {
+  const [inputValue, setInputValue] = useState('')
+  const [inputs, setInputs] = useState<Record<string, any>>(() => {
     if (hasSetInputs) { return savedInputs }
-
     const res: Record<string, any> = {}
     if (promptConfig) {
       promptConfig.prompt_variables.forEach((item) => {
@@ -50,7 +79,8 @@ const Welcome: FC<IWelcomeProps> = ({
       })
     }
     return res
-  })())
+  })
+
   useEffect(() => {
     if (!savedInputs) {
       const res: Record<string, any> = {}
@@ -60,115 +90,14 @@ const Welcome: FC<IWelcomeProps> = ({
         })
       }
       setInputs(res)
-    }
-    else {
+    } else {
       setInputs(savedInputs)
     }
-  }, [savedInputs])
-
-  const highLightPromoptTemplate = (() => {
-    if (!promptConfig) { return '' }
-    const res = promptConfig.prompt_template.replace(regex, (match, p1) => {
-      return `<span class='text-gray-800 font-bold'>${inputs?.[p1] ? inputs?.[p1] : match}</span>`
-    })
-    return res
-  })()
+  }, [savedInputs, promptConfig])
 
   const { notify } = Toast
   const logError = (message: string) => {
     notify({ type: 'error', message, duration: 3000 })
-  }
-
-  const renderHeader = () => {
-    return (
-      <div className='absolute top-0 left-0 right-0 flex items-center justify-between border-b border-gray-100 mobile:h-12 tablet:h-16 px-8 bg-white'>
-        <div className='text-gray-900'>{conversationName}</div>
-      </div>
-    )
-  }
-
-  const renderInputs = () => {
-    return (
-      <div className='space-y-3'>
-        {promptConfig.prompt_variables.map(item => (
-          <div className='tablet:flex items-start mobile:space-y-2 tablet:space-y-0 mobile:text-xs tablet:text-sm' key={item.key}>
-            <label className={`flex-shrink-0 flex items-center tablet:leading-9 mobile:text-gray-700 tablet:text-gray-900 mobile:font-medium pc:font-normal ${s.formLabel}`}>{item.name}</label>
-            {item.type === 'select'
-              && (
-                <Select
-                  className='w-full'
-                  defaultValue={inputs?.[item.key]}
-                  onSelect={(i) => { setInputs({ ...inputs, [item.key]: i.value }) }}
-                  items={(item.options || []).map(i => ({ name: i, value: i }))}
-                  allowSearch={false}
-                  bgClassName='bg-gray-50'
-                />
-              )}
-            {item.type === 'string' && (
-              <input
-                placeholder={`${item.name}${!item.required ? `(${t('app.variableTable.optional')})` : ''}`}
-                value={inputs?.[item.key] || ''}
-                onChange={(e) => { setInputs({ ...inputs, [item.key]: e.target.value }) }}
-                className={'w-full flex-grow py-2 pl-3 pr-3 box-border rounded-lg bg-gray-50'}
-                maxLength={item.max_length || DEFAULT_VALUE_MAX_LEN}
-              />
-            )}
-            {item.type === 'paragraph' && (
-              <textarea
-                className="w-full h-[104px] flex-grow py-2 pl-3 pr-3 box-border rounded-lg bg-gray-50"
-                placeholder={`${item.name}${!item.required ? `(${t('app.variableTable.optional')})` : ''}`}
-                value={inputs?.[item.key] || ''}
-                onChange={(e) => { setInputs({ ...inputs, [item.key]: e.target.value }) }}
-              />
-            )}
-            {item.type === 'number' && (
-              <input
-                type="number"
-                className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 sm:text-xs focus:ring-blue-500 focus:border-blue-500 "
-                placeholder={`${item.name}${!item.required ? `(${t('appDebug.variableTable.optional')})` : ''}`}
-                value={inputs[item.key]}
-                onChange={(e) => { onInputsChange({ ...inputs, [item.key]: e.target.value }) }}
-              />
-            )}
-
-            {
-              item.type === 'file' && (
-                <FileUploaderInAttachmentWrapper
-                  fileConfig={{
-                    allowed_file_types: item.allowed_file_types,
-                    allowed_file_extensions: item.allowed_file_extensions,
-                    allowed_file_upload_methods: item.allowed_file_upload_methods!,
-                    number_limits: 1,
-                    fileUploadConfig: {} as any,
-                  }}
-                  onChange={(files) => {
-                    setInputs({ ...inputs, [item.key]: files[0] })
-                  }}
-                  value={inputs?.[item.key] || []}
-                />
-              )
-            }
-            {
-              item.type === 'file-list' && (
-                <FileUploaderInAttachmentWrapper
-                  fileConfig={{
-                    allowed_file_types: item.allowed_file_types,
-                    allowed_file_extensions: item.allowed_file_extensions,
-                    allowed_file_upload_methods: item.allowed_file_upload_methods!,
-                    number_limits: item.max_length,
-                    fileUploadConfig: {} as any,
-                  }}
-                  onChange={(files) => {
-                    setInputs({ ...inputs, [item.key]: files })
-                  }}
-                  value={inputs?.[item.key] || []}
-                />
-              )
-            }
-          </div>
-        ))}
-      </div>
-    )
   }
 
   const canChat = () => {
@@ -186,200 +115,161 @@ const Welcome: FC<IWelcomeProps> = ({
   }
 
   const handleChat = () => {
-    if (!canChat()) { return }
-
+    if (hasVar && !canChat()) { return }
     onStartChat(inputs)
   }
 
-  const renderNoVarPanel = () => {
-    if (isPublicVersion) {
-      return (
-        <div>
-          <AppInfoComp siteInfo={siteInfo} />
-          <TemplateVarPanel
-            isFold={false}
-            header={
-              <>
-                <PanelTitle
-                  title={t('app.chat.publicPromptConfigTitle')}
-                  className='mb-1'
-                />
-                <PromptTemplate html={highLightPromoptTemplate} />
-              </>
-            }
-          >
-            <ChatBtn onClick={handleChat} />
-          </TemplateVarPanel>
-        </div>
-      )
+  const handleSuggestionClick = (prompt: string) => {
+    const firstKey = promptConfig.prompt_variables.find(v => v.type === 'string' || v.type === 'paragraph')?.key
+    if (firstKey) {
+      setInputs({ ...inputs, [firstKey]: prompt })
     }
-    // private version
-    return (
-      <TemplateVarPanel
-        isFold={false}
-        header={
-          <AppInfoComp siteInfo={siteInfo} />
-        }
-      >
-        <ChatBtn onClick={handleChat} />
-      </TemplateVarPanel>
-    )
   }
 
-  const renderVarPanel = () => {
-    return (
-      <TemplateVarPanel
-        isFold={false}
-        header={
-          <AppInfoComp siteInfo={siteInfo} />
-        }
-      >
-        {renderInputs()}
-        <ChatBtn
-          className='mt-3 mobile:ml-0 tablet:ml-[128px]'
-          onClick={handleChat}
-        />
-      </TemplateVarPanel>
-    )
-  }
-
-  const renderVarOpBtnGroup = () => {
-    return (
-      <VarOpBtnGroup
-        onConfirm={() => {
-          if (!canChat()) { return }
-
-          onInputsChange(inputs)
-          setIsFold(true)
-        }}
-        onCancel={() => {
-          setInputs(savedInputs)
-          setIsFold(true)
-        }}
-      />
-    )
-  }
-
-  const renderHasSetInputsPublic = () => {
-    if (!canEditInputs) {
-      return (
-        <TemplateVarPanel
-          isFold={false}
-          header={
-            <>
-              <PanelTitle
-                title={t('app.chat.publicPromptConfigTitle')}
-                className='mb-1'
-              />
-              <PromptTemplate html={highLightPromoptTemplate} />
-            </>
-          }
-        />
-      )
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleChat()
     }
-
-    return (
-      <TemplateVarPanel
-        isFold={isFold}
-        header={
-          <>
-            <PanelTitle
-              title={t('app.chat.publicPromptConfigTitle')}
-              className='mb-1'
-            />
-            <PromptTemplate html={highLightPromoptTemplate} />
-            {isFold && (
-              <div className='flex items-center justify-between mt-3 border-t border-blue-100 pt-4 text-xs text-blue-600'>
-                <span className='text-gray-700'>{t('app.chat.configStatusDes')}</span>
-                <EditBtn onClick={() => setIsFold(false)} />
-              </div>
-            )}
-          </>
-        }
-      >
-        {renderInputs()}
-        {renderVarOpBtnGroup()}
-      </TemplateVarPanel>
-    )
   }
 
-  const renderHasSetInputsPrivate = () => {
-    if (!canEditInputs || !hasVar) { return null }
-
-    return (
-      <TemplateVarPanel
-        isFold={isFold}
-        header={
-          <div className='flex items-center justify-between text-blue-600'>
-            <PanelTitle
-              title={!isFold ? t('app.chat.privatePromptConfigTitle') : t('app.chat.configStatusDes')}
-            />
-            {isFold && (
-              <EditBtn onClick={() => setIsFold(false)} />
-            )}
-          </div>
-        }
-      >
-        {renderInputs()}
-        {renderVarOpBtnGroup()}
-      </TemplateVarPanel>
-    )
-  }
-
-  const renderHasSetInputs = () => {
-    if ((!isPublicVersion && !canEditInputs) || !hasVar) { return null }
-
-    return (
-      <div
-        className='pt-[88px] mb-5'
-      >
-        {isPublicVersion ? renderHasSetInputsPublic() : renderHasSetInputsPrivate()}
-      </div>)
-  }
+  // If has set inputs already, don't show welcome
+  if (hasSetInputs) { return null }
 
   return (
-    <div className='relative mobile:min-h-[48px] tablet:min-h-[64px]'>
-      {hasSetInputs && renderHeader()}
-      <div className='mx-auto pc:w-[794px] max-w-full mobile:w-full px-3.5'>
-        {/*  Has't set inputs  */}
-        {
-          !hasSetInputs && (
-            <div className='mobile:pt-[72px] tablet:pt-[128px] pc:pt-[200px]'>
-              {hasVar
-                ? (
-                  renderVarPanel()
-                )
-                : (
-                  renderNoVarPanel()
-                )}
+    <div className="flex-1 flex flex-col items-center justify-center bg-[var(--main-bg)] px-4 py-8 overflow-y-auto">
+      <div className="w-full max-w-3xl mx-auto">
+        {/* Logo and greeting */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--accent-color)] mb-6">
+            <SparklesIcon className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-3xl font-semibold text-[var(--text-primary)] mb-2">
+            How can I help you today?
+          </h1>
+          <p className="text-[var(--text-muted)] text-base">
+            {siteInfo.description || 'Ask me anything - I\'m here to help with questions, tasks, and creative projects.'}
+          </p>
+        </div>
+
+        {/* Suggestion cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+          {suggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              onClick={() => handleSuggestionClick(suggestion.prompt)}
+              className="flex items-start gap-3 p-4 rounded-xl border border-[var(--border-color)] bg-[var(--input-bg)] hover:bg-[var(--sidebar-hover)] transition-all duration-200 text-left group"
+            >
+              <div className="flex-shrink-0 p-2 rounded-lg bg-[var(--sidebar-bg)] text-[var(--text-muted)] group-hover:text-[var(--accent-color)] transition-colors">
+                {suggestion.icon}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-[var(--text-primary)] mb-0.5">
+                  {suggestion.title}
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  {suggestion.description}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Input area for variables or direct chat */}
+        {hasVar
+          ? (
+            <div className="space-y-4 mb-6">
+              {promptConfig.prompt_variables.map(item => (
+                <div key={item.key}>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    {item.name}
+                    {!item.required && <span className="text-[var(--text-muted)] ml-1">({t('app.variableTable.optional')})</span>}
+                  </label>
+                  {item.type === 'select' && (
+                    <Select
+                      className="w-full"
+                      defaultValue={inputs?.[item.key]}
+                      onSelect={i => setInputs({ ...inputs, [item.key]: i.value })}
+                      items={(item.options || []).map(i => ({ name: i, value: i }))}
+                      allowSearch={false}
+                      bgClassName="bg-[var(--input-bg)]"
+                    />
+                  )}
+                  {item.type === 'string' && (
+                    <input
+                      type="text"
+                      placeholder={`Enter ${item.name.toLowerCase()}...`}
+                      value={inputs?.[item.key] || ''}
+                      onChange={e => setInputs({ ...inputs, [item.key]: e.target.value })}
+                      onKeyDown={handleKeyDown}
+                      className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--text-muted)] transition-colors"
+                      maxLength={item.max_length || DEFAULT_VALUE_MAX_LEN}
+                    />
+                  )}
+                  {item.type === 'paragraph' && (
+                    <textarea
+                      placeholder={`Enter ${item.name.toLowerCase()}...`}
+                      value={inputs?.[item.key] || ''}
+                      onChange={e => setInputs({ ...inputs, [item.key]: e.target.value })}
+                      className="w-full h-24 px-4 py-3 bg-[var(--input-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--text-muted)] transition-colors resize-none"
+                    />
+                  )}
+                  {item.type === 'number' && (
+                    <input
+                      type="number"
+                      placeholder={`Enter ${item.name.toLowerCase()}...`}
+                      value={inputs?.[item.key] || ''}
+                      onChange={e => setInputs({ ...inputs, [item.key]: e.target.value })}
+                      className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--text-muted)] transition-colors"
+                    />
+                  )}
+                  {item.type === 'file' && (
+                    <FileUploaderInAttachmentWrapper
+                      fileConfig={{
+                        allowed_file_types: item.allowed_file_types,
+                        allowed_file_extensions: item.allowed_file_extensions,
+                        allowed_file_upload_methods: item.allowed_file_upload_methods!,
+                        number_limits: 1,
+                        fileUploadConfig: {} as any,
+                      }}
+                      onChange={files => setInputs({ ...inputs, [item.key]: files[0] })}
+                      value={inputs?.[item.key] || []}
+                    />
+                  )}
+                  {item.type === 'file-list' && (
+                    <FileUploaderInAttachmentWrapper
+                      fileConfig={{
+                        allowed_file_types: item.allowed_file_types,
+                        allowed_file_extensions: item.allowed_file_extensions,
+                        allowed_file_upload_methods: item.allowed_file_upload_methods!,
+                        number_limits: item.max_length,
+                        fileUploadConfig: {} as any,
+                      }}
+                      onChange={files => setInputs({ ...inputs, [item.key]: files })}
+                      value={inputs?.[item.key] || []}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           )
-        }
+          : null}
 
-        {/* Has set inputs */}
-        {hasSetInputs && renderHasSetInputs()}
+        {/* Start chat button */}
+        <button
+          onClick={handleChat}
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--main-bg)] font-medium rounded-xl transition-all duration-200"
+        >
+          <span>Start chatting</span>
+          <ArrowUpIcon className="w-5 h-5" />
+        </button>
 
-        {/* foot */}
-        {!hasSetInputs && (
-          <div className='mt-4 flex justify-between items-center h-8 text-xs text-gray-400'>
-            {siteInfo.privacy_policy
-              ? <div>{t('app.chat.privacyPolicyLeft')}
-                <a
-                  className='text-gray-500'
-                  href={siteInfo.privacy_policy}
-                  target='_blank'
-                >{t('app.chat.privacyPolicyMiddle')}</a>
-                {t('app.chat.privacyPolicyRight')}
-              </div>
-              : <div></div>}
-            <div className='flex items-center pr-3 space-x-3'>
-              <span className='uppercase text-blue-600 font-medium'>{t('app.chat.powerBy')}</span>
-              <InnovacoLogo />
-            </div>
-          </div>
-        )}
+        {/* Footer */}
+        <p className="text-center text-xs text-[var(--text-muted)] mt-6">
+          Chtisma can make mistakes. Please verify important information.
+        </p>
       </div>
-    </div >
+    </div>
   )
 }
 

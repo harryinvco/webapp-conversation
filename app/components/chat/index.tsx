@@ -1,16 +1,16 @@
 'use client'
 import type { FC } from 'react'
-import React, { useEffect, useRef } from 'react'
-import cn from 'classnames'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import Textarea from 'rc-textarea'
-import s from './style.module.css'
-import Answer from './answer'
-import Question from './question'
+import {
+  ArrowUpIcon,
+  PaperClipIcon,
+  StopIcon,
+} from '@heroicons/react/24/solid'
+import VirtualizedChatList from './virtualized-chat-list'
 import type { FeedbackFunc } from './type'
 import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
-import Tooltip from '@/app/components/base/tooltip'
 import Toast from '@/app/components/base/toast'
 import ChatImageUploader from '@/app/components/base/image-uploader/chat-image-uploader'
 import ImageList from '@/app/components/base/image-uploader/image-list'
@@ -59,24 +59,24 @@ const Chat: FC<IChatProps> = ({
   const [query, setQuery] = React.useState('')
   const queryRef = useRef('')
 
-  const handleContentChange = (e: any) => {
+  const handleContentChange = useCallback((e: any) => {
     const value = e.target.value
     setQuery(value)
     queryRef.current = value
-  }
+  }, [])
 
-  const logError = (message: string) => {
+  const logError = useCallback((message: string) => {
     notify({ type: 'error', message, duration: 3000 })
-  }
+  }, [notify])
 
-  const valid = () => {
+  const valid = useCallback(() => {
     const query = queryRef.current
     if (!query || query.trim() === '') {
       logError(t('app.errorMessage.valueOfVarRequired'))
       return false
     }
     return true
-  }
+  }, [logError, t])
 
   useEffect(() => {
     if (controlClearQuery) {
@@ -96,7 +96,7 @@ const Chat: FC<IChatProps> = ({
 
   const [attachmentFiles, setAttachmentFiles] = React.useState<FileEntity[]>([])
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     if (!valid() || (checkCanSend && !checkCanSend())) { return }
     const imageFiles: VisionFile[] = files.filter(file => file.progress !== -1).map(fileItem => ({
       type: 'image',
@@ -115,17 +115,17 @@ const Chat: FC<IChatProps> = ({
       }
     }
     if (!attachmentFiles.find(item => item.transferMethod === TransferMethod.local_file && !item.uploadedId)) { setAttachmentFiles([]) }
-  }
+  }, [valid, checkCanSend, files, attachmentFiles, onSend, onClear, isResponding])
 
-  const handleKeyUp = (e: any) => {
+  const handleKeyUp = useCallback((e: any) => {
     if (e.code === 'Enter') {
       e.preventDefault()
       // prevent send message when using input method enter
       if (!e.shiftKey && !isUseInputMethod.current) { handleSend() }
     }
-  }
+  }, [handleSend])
 
-  const handleKeyDown = (e: any) => {
+  const handleKeyDown = useCallback((e: any) => {
     isUseInputMethod.current = e.nativeEvent.isComposing
     if (e.code === 'Enter' && !e.shiftKey) {
       const result = query.replace(/\n$/, '')
@@ -133,108 +133,143 @@ const Chat: FC<IChatProps> = ({
       queryRef.current = result
       e.preventDefault()
     }
-  }
+  }, [query])
 
-  const suggestionClick = (suggestion: string) => {
+  const suggestionClick = useCallback((suggestion: string) => {
     setQuery(suggestion)
     queryRef.current = suggestion
-    handleSend()
-  }
+    // Use setTimeout to ensure state is updated before sending
+    setTimeout(() => handleSend(), 0)
+  }, [handleSend])
+
+  // Memoize chat list to prevent unnecessary re-renders
+  const memoizedChatList = useMemo(() => chatList, [chatList])
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-resize textarea
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+    }
+  }, [])
+
+  useEffect(() => {
+    adjustTextareaHeight()
+  }, [query, adjustTextareaHeight])
+
+  const canSend = query.trim().length > 0 && !isResponding
 
   return (
-    <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
-      {/* Chat List */}
-      <div className="h-full space-y-[30px]">
-        {chatList.map((item) => {
-          if (item.isAnswer) {
-            const isLast = item.id === chatList[chatList.length - 1].id
-            return <Answer
-              key={item.id}
-              item={item}
-              feedbackDisabled={feedbackDisabled}
-              onFeedback={onFeedback}
-              isResponding={isResponding && isLast}
-              suggestionClick={suggestionClick}
-            />
-          }
-          return (
-            <Question
-              key={item.id}
-              id={item.id}
-              content={item.content}
-              useCurrentUserAvatar={useCurrentUserAvatar}
-              imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
-            />
-          )
-        })}
+    <div className="flex flex-col h-full bg-[var(--main-bg)]">
+      {/* Chat List - Virtualized for performance */}
+      <div className="flex-1 overflow-hidden">
+        <VirtualizedChatList
+          chatList={memoizedChatList}
+          feedbackDisabled={feedbackDisabled}
+          onFeedback={onFeedback}
+          isResponding={isResponding}
+          useCurrentUserAvatar={useCurrentUserAvatar}
+          suggestionClick={suggestionClick}
+        />
       </div>
-      {
-        !isHideSendInput && (
-          <div className='fixed z-10 bottom-0 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5'>
-            <div className='p-[5.5px] max-h-[150px] bg-white border-[1.5px] border-gray-200 rounded-xl overflow-y-auto'>
-              {
-                visionConfig?.enabled && (
-                  <>
-                    <div className='absolute bottom-2 left-2 flex items-center'>
-                      <ChatImageUploader
-                        settings={visionConfig}
-                        onUpload={onUpload}
-                        disabled={files.length >= visionConfig.number_limits}
-                      />
-                      <div className='mx-1 w-[1px] h-4 bg-black/5' />
-                    </div>
-                    <div className='pl-[52px]'>
-                      <ImageList
-                        list={files}
-                        onRemove={onRemove}
-                        onReUpload={onReUpload}
-                        onImageLinkLoadSuccess={onImageLinkLoadSuccess}
-                        onImageLinkLoadError={onImageLinkLoadError}
-                      />
-                    </div>
-                  </>
-                )
-              }
-              {
-                fileConfig?.enabled && (
-                  <div className={`${visionConfig?.enabled ? 'pl-[52px]' : ''} mb-1`}>
-                    <FileUploaderInAttachmentWrapper
-                      fileConfig={fileConfig}
-                      value={attachmentFiles}
-                      onChange={setAttachmentFiles}
+
+      {/* ChatGPT-style Input Area */}
+      {!isHideSendInput && (
+        <div className="flex-shrink-0 bg-gradient-to-t from-[var(--main-bg)] via-[var(--main-bg)] to-transparent pt-6 pb-4">
+          <div className="max-w-3xl mx-auto px-4">
+            {/* File/Image previews */}
+            {(visionConfig?.enabled && files.length > 0) && (
+              <div className="mb-2 p-2 bg-[var(--input-bg)] rounded-t-2xl border border-b-0 border-[var(--border-color)]">
+                <ImageList
+                  list={files}
+                  onRemove={onRemove}
+                  onReUpload={onReUpload}
+                  onImageLinkLoadSuccess={onImageLinkLoadSuccess}
+                  onImageLinkLoadError={onImageLinkLoadError}
+                />
+              </div>
+            )}
+
+            {fileConfig?.enabled && attachmentFiles.length > 0 && (
+              <div className="mb-2 p-2 bg-[var(--input-bg)] rounded-t-2xl border border-b-0 border-[var(--border-color)]">
+                <FileUploaderInAttachmentWrapper
+                  fileConfig={fileConfig}
+                  value={attachmentFiles}
+                  onChange={setAttachmentFiles}
+                />
+              </div>
+            )}
+
+            {/* Main Input Container */}
+            <div className="relative flex items-end bg-[var(--input-bg)] border border-[var(--border-color)] rounded-2xl shadow-lg transition-all duration-200 focus-within:border-[var(--text-muted)]">
+              {/* Attachment button */}
+              {(visionConfig?.enabled || fileConfig?.enabled) && (
+                <div className="flex-shrink-0 p-2">
+                  {visionConfig?.enabled && (
+                    <ChatImageUploader
+                      settings={visionConfig}
+                      onUpload={onUpload}
+                      disabled={files.length >= visionConfig.number_limits}
                     />
-                  </div>
-                )
-              }
-              <Textarea
-                className={`
-                  block w-full px-2 pr-[118px] py-[7px] leading-5 max-h-none text-base text-gray-700 outline-none appearance-none resize-none
-                  ${visionConfig?.enabled && 'pl-12'}
-                `}
+                  )}
+                  {!visionConfig?.enabled && fileConfig?.enabled && (
+                    <button className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors">
+                      <PaperClipIcon className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Textarea */}
+              <textarea
+                ref={textareaRef}
+                className="flex-1 max-h-[200px] py-3 px-3 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none outline-none text-[15px] leading-6"
+                placeholder="Message Chtisma..."
                 value={query}
                 onChange={handleContentChange}
                 onKeyUp={handleKeyUp}
                 onKeyDown={handleKeyDown}
-                autoSize
+                rows={1}
               />
-              <div className="absolute bottom-2 right-6 flex items-center h-8">
-                <div className={`${s.count} mr-3 h-5 leading-5 text-sm bg-gray-50 text-gray-500 px-2 rounded`}>{query.trim().length}</div>
-                <Tooltip
-                  selector='send-tip'
-                  htmlContent={
-                    <div>
-                      <div>{t('common.operation.send')} Enter</div>
-                      <div>{t('common.operation.lineBreak')} Shift Enter</div>
-                    </div>
-                  }
-                >
-                  <div className={`${s.sendBtn} w-8 h-8 cursor-pointer rounded-md`} onClick={handleSend}></div>
-                </Tooltip>
+
+              {/* Send/Stop button */}
+              <div className="flex-shrink-0 p-2">
+                {isResponding
+                  ? (
+                    <button
+                      className="p-2 rounded-lg bg-[var(--text-muted)] hover:bg-[var(--text-secondary)] transition-colors"
+                      title="Stop generating"
+                    >
+                      <StopIcon className="w-5 h-5 text-[var(--main-bg)]" />
+                    </button>
+                  )
+                  : (
+                    <button
+                      onClick={handleSend}
+                      disabled={!canSend}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        canSend
+                          ? 'bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] cursor-pointer'
+                          : 'bg-[var(--border-color)] cursor-not-allowed'
+                      }`}
+                      title="Send message"
+                    >
+                      <ArrowUpIcon className={`w-5 h-5 ${canSend ? 'text-[var(--main-bg)]' : 'text-[var(--text-muted)]'}`} />
+                    </button>
+                  )}
               </div>
             </div>
+
+            {/* Helper text */}
+            <p className="text-center text-xs text-[var(--text-muted)] mt-2">
+              Chtisma can make mistakes. Check important info.
+            </p>
           </div>
-        )
-      }
+        </div>
+      )}
     </div>
   )
 }

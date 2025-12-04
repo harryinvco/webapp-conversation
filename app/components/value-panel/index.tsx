@@ -21,10 +21,10 @@ const TemplateVarPanel: FC<ITemplateVarPanelProps> = ({
   isFold,
 }) => {
   return (
-    <div className={cn(isFold ? 'border border-indigo-100' : s.boxShodow, className, 'rounded-xl ')}>
+    <div className={cn(isFold ? 'border border-red-100' : s.boxShodow, className, 'rounded-xl ')}>
       {/* header */}
       <div
-        className={cn(isFold && 'rounded-b-xl', 'rounded-t-xl px-6 py-4 bg-indigo-25 text-xs')}
+        className={cn(isFold && 'rounded-b-xl', 'rounded-t-xl px-6 py-4 bg-red-50 text-xs')}
       >
         {header}
       </div>
@@ -43,7 +43,7 @@ export const PanelTitle: FC<{ title: string, className?: string }> = ({
   className,
 }) => {
   return (
-    <div className={cn(className, 'flex items-center space-x-1 text-indigo-600')}>
+    <div className={cn(className, 'flex items-center space-x-1 text-red-600')}>
       <StarIcon />
       <span className='text-xs'>{title}</span>
     </div>

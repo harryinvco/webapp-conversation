@@ -25,10 +25,10 @@ const AppIcon: FC<AppIconProps> = ({
         className ?? '',
       )}
       style={{
-        background,
+        background: background || 'transparent',
       }}
     >
-      🤖
+      <img src="/chtisma-logo.png" alt="Chtisma" className={style.logoImg} />
     </span>
   )
 }
