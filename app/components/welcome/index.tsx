@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import {
   DocumentTextIcon,
   ChatBubbleLeftRightIcon,
-  CodeBracketIcon,
   LightBulbIcon,
   ArrowUpIcon,
 } from '@heroicons/react/24/outline'
@@ -37,12 +36,6 @@ const suggestions = [
     prompt: 'Please summarize the following text: ',
   },
   {
-    icon: <CodeBracketIcon className="w-5 h-5" />,
-    title: 'Help me code',
-    description: 'Debug, write, or explain code',
-    prompt: 'I need help with the following code: ',
-  },
-  {
     icon: <LightBulbIcon className="w-5 h-5" />,
     title: 'Brainstorm ideas',
     description: 'Generate creative ideas for any project',
@@ -53,6 +46,12 @@ const suggestions = [
     title: 'Draft a message',
     description: 'Write professional emails or messages',
     prompt: 'Help me write a professional message about: ',
+  },
+  {
+    icon: <SparklesIcon className="w-5 h-5" />,
+    title: 'Chtisma products',
+    description: 'Get help with Chtisma products and services',
+    prompt: 'Help me with Chtisma products: ',
   },
 ]
 
