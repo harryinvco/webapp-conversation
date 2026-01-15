@@ -1,28 +1,27 @@
-import { getLocaleOnServer } from '@/i18n/server'
-import { ThemeProvider } from '@/app/context/theme-context'
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
 
-import './styles/globals.css'
-import './styles/markdown.scss'
+export const metadata: Metadata = {
+  title: 'Chtisma',
+  description: 'Chtisma AI Assistants',
+}
 
-const LocaleLayout = async ({
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
-}) => {
-  const locale = await getLocaleOnServer()
+}) {
   return (
-    <html lang={locale ?? 'en'} className="h-full" data-theme="light">
-      <body className="h-full bg-[var(--main-bg)]">
-        <ThemeProvider>
-          <div className="overflow-x-auto">
-            <div className="w-screen h-screen min-w-[300px]">
-              {children}
-            </div>
-          </div>
-        </ThemeProvider>
+    <html lang="en">
+      <body className="min-h-screen">
+        {children}
       </body>
     </html>
   )
 }
-
-export default LocaleLayout
