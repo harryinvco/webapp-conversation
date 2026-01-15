@@ -3,9 +3,8 @@
 import { useState, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { Message } from '@/types'
-import { MessageList } from '@/components/chat'
 import { CatalogDrawer } from '@/components/catalog'
-import { PRODUCTS, CATEGORIES, getProductsByCategory, Product } from '@/data/products'
+import { PRODUCTS, CATEGORIES, Product } from '@/data/products'
 
 export default function CatalogPage() {
   const [messages, setMessages] = useState<Message[]>([

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { Product, Category, getProductsByCategory } from '@/data/products'
 
 interface CatalogDrawerProps {
